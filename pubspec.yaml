@@ -32,7 +32,8 @@ dependencies:
   video_player: ^2.7.0
   visibility_detector: ^0.4.0
   video_player_media_kit: ^2.0.0
-  media_kit_libs_android_video: any
+  media_kit_video: ^2.0.0
+  media_kit_libs_android_video: ^1.2.0
 
 dev_dependencies:
   flutter_lints: any

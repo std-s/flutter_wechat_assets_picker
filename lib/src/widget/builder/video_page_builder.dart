@@ -167,8 +167,9 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
       fit: StackFit.expand,
       children: <Widget>[
         Positioned.fill(
-          child: Center(
-            child: AspectRatio(aspectRatio: controller.value.aspectRatio, child: VideoPlayer(controller)),
+          child: AspectRatio(
+            aspectRatio: controller.value.aspectRatio,
+            child: VideoPlayer(controller),
           ),
         ),
         if (!widget.hasOnlyOneVideoAndMoment)
