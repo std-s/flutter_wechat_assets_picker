@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:video_player/video_player.dart';
+import 'package:video_player_media_kit/video_player_media_kit.dart';
 import 'package:wechat_picker_library/wechat_picker_library.dart';
 
 import '../../constants/constants.dart';
@@ -27,8 +28,7 @@ class VideoPageBuilder extends StatefulWidget {
   /// 展示的资源
   final AssetEntity asset;
 
-  final AssetPickerViewerBuilderDelegate<AssetEntity, AssetPathEntity,
-      AssetPickerViewerProvider<AssetEntity>> delegate;
+  final AssetPickerViewerBuilderDelegate<AssetEntity, AssetPathEntity, AssetPickerViewerProvider<AssetEntity>> delegate;
 
   /// Only previewing one video and with the [SpecialPickerType.wechatMoment].
   /// 是否处于 [SpecialPickerType.wechatMoment] 且只有一个视频
@@ -109,6 +109,7 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
     }
     final Uri uri = Uri.parse(url);
     if (Platform.isAndroid) {
+      VideoPlayerMediaKit.ensureInitialized(android: true);
       _controller = VideoPlayerController.contentUri(uri);
     } else {
       _controller = VideoPlayerController.networkUrl(uri);
@@ -123,14 +124,7 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
         controller.play();
       }
     } catch (e, s) {
-      FlutterError.presentError(
-        FlutterErrorDetails(
-          exception: e,
-          stack: s,
-          library: packageName,
-          silent: true,
-        ),
-      );
+      FlutterError.presentError(FlutterErrorDetails(exception: e, stack: s, library: packageName, silent: true));
       hasErrorWhenInitializing = true;
     } finally {
       safeSetState(() {});
@@ -156,8 +150,7 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
       controller.pause();
       return;
     }
-    if (widget.delegate.isDisplayingDetail.value &&
-        !MediaQuery.accessibleNavigationOf(context)) {
+    if (widget.delegate.isDisplayingDetail.value && !MediaQuery.accessibleNavigationOf(context)) {
       widget.delegate.switchDisplayingDetail(value: false);
     }
     if (controller.value.duration == controller.value.position) {
@@ -175,10 +168,7 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
       children: <Widget>[
         Positioned.fill(
           child: Center(
-            child: AspectRatio(
-              aspectRatio: controller.value.aspectRatio,
-              child: VideoPlayer(controller),
-            ),
+            child: AspectRatio(aspectRatio: controller.value.aspectRatio, child: VideoPlayer(controller)),
           ),
         ),
         if (!widget.hasOnlyOneVideoAndMoment)
@@ -201,15 +191,11 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
                     },
                     child: DecoratedBox(
                       decoration: const BoxDecoration(
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(color: Colors.black12),
-                        ],
+                        boxShadow: <BoxShadow>[BoxShadow(color: Colors.black12)],
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        value
-                            ? Icons.pause_circle_outline
-                            : Icons.play_circle_filled,
+                        value ? Icons.pause_circle_outline : Icons.play_circle_filled,
                         size: 70.0,
                         color: Colors.white,
                       ),
@@ -234,8 +220,7 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
           return Center(
             child: ScaleText(
               Singleton.textDelegate.loadFailed,
-              semanticsLabel:
-                  Singleton.textDelegate.semanticsTextDelegate.loadFailed,
+              semanticsLabel: Singleton.textDelegate.semanticsTextDelegate.loadFailed,
             ),
           );
         }
@@ -249,8 +234,7 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
           onLongPress: () {
             playButtonCallback(context);
           },
-          onLongPressHint:
-              Singleton.textDelegate.semanticsTextDelegate.sActionPlayHint,
+          onLongPressHint: Singleton.textDelegate.semanticsTextDelegate.sActionPlayHint,
           child: _contentBuilder(context),
         );
       },
