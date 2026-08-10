@@ -28,7 +28,8 @@ class VideoPageBuilder extends StatefulWidget {
   /// 展示的资源
   final AssetEntity asset;
 
-  final AssetPickerViewerBuilderDelegate<AssetEntity, AssetPathEntity, AssetPickerViewerProvider<AssetEntity>> delegate;
+  final AssetPickerViewerBuilderDelegate<AssetEntity, AssetPathEntity,
+      AssetPickerViewerProvider<AssetEntity>> delegate;
 
   /// Only previewing one video and with the [SpecialPickerType.wechatMoment].
   /// 是否处于 [SpecialPickerType.wechatMoment] 且只有一个视频
@@ -43,6 +44,8 @@ class VideoPageBuilder extends StatefulWidget {
 }
 
 class _VideoPageBuilderState extends State<VideoPageBuilder> {
+  static bool _mediaKitInitialized = false;
+
   /// Controller for the video player.
   /// 视频播放的控制器
   VideoPlayerController get controller => _controller!;
@@ -66,11 +69,13 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
 
   bool _isInitializing = false;
   bool _isLocallyAvailable = false;
+  int _initializationGeneration = 0;
 
   @override
   void didUpdateWidget(VideoPageBuilder oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.asset != oldWidget.asset) {
+      _initializationGeneration++;
       _controller
         ?..removeListener(videoPlayerListener)
         ..pause()
@@ -88,6 +93,7 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
   void dispose() {
     /// Remove listener from the controller and dispose it when widget dispose.
     /// 部件销毁时移除控制器的监听并销毁控制器。
+    _initializationGeneration++;
     _controller
       ?..removeListener(videoPlayerListener)
       ..pause()
@@ -99,35 +105,66 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
   /// Get media url from the asset, then initialize the controller and add with a listener.
   /// 从资源获取媒体url后初始化，并添加监听。
   Future<void> initializeVideoPlayerController() async {
+    final int generation = _initializationGeneration;
+    final AssetEntity asset = widget.asset;
     _isInitializing = true;
     _isLocallyAvailable = true;
-    final String? url = await widget.asset.getMediaUrl();
+    final String? url = await asset.getMediaUrl();
+    if (!mounted || generation != _initializationGeneration) {
+      return;
+    }
     if (url == null) {
       hasErrorWhenInitializing = true;
       safeSetState(() {});
       return;
     }
     final Uri uri = Uri.parse(url);
+    final VideoPlayerController localController;
     if (Platform.isAndroid) {
-      VideoPlayerMediaKit.ensureInitialized(android: true);
-      _controller = VideoPlayerController.contentUri(uri);
+      if (!_mediaKitInitialized) {
+        VideoPlayerMediaKit.ensureInitialized(android: true);
+        _mediaKitInitialized = true;
+      }
+      localController = VideoPlayerController.contentUri(uri);
     } else {
-      _controller = VideoPlayerController.networkUrl(uri);
+      localController = VideoPlayerController.networkUrl(uri);
     }
+    _controller = localController;
     try {
-      await controller.initialize();
+      await localController.initialize();
+      if (!mounted || !identical(_controller, localController)) {
+        // Widget was disposed or the asset was swapped mid-await. Release the
+        // orphaned controller so its player can't keep running in the
+        // background (e.g. iCloud video whose network fetch completed after
+        // the user left the preview).
+        await localController.dispose();
+        return;
+      }
       hasLoaded = true;
-      controller
+      localController
         ..addListener(videoPlayerListener)
         ..setLooping(widget.hasOnlyOneVideoAndMoment);
       if (widget.hasOnlyOneVideoAndMoment || widget.shouldAutoplayPreview) {
-        controller.play();
+        localController.play();
       }
     } catch (e, s) {
-      FlutterError.presentError(FlutterErrorDetails(exception: e, stack: s, library: packageName, silent: true));
+      FlutterError.presentError(
+        FlutterErrorDetails(
+          exception: e,
+          stack: s,
+          library: packageName,
+          silent: true,
+        ),
+      );
+      if (!mounted || !identical(_controller, localController)) {
+        await localController.dispose();
+        return;
+      }
       hasErrorWhenInitializing = true;
     } finally {
-      safeSetState(() {});
+      if (mounted && identical(_controller, localController)) {
+        safeSetState(() {});
+      }
     }
   }
 
@@ -150,7 +187,8 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
       controller.pause();
       return;
     }
-    if (widget.delegate.isDisplayingDetail.value && !MediaQuery.accessibleNavigationOf(context)) {
+    if (widget.delegate.isDisplayingDetail.value &&
+        !MediaQuery.accessibleNavigationOf(context)) {
       widget.delegate.switchDisplayingDetail(value: false);
     }
     if (controller.value.duration == controller.value.position) {
@@ -192,11 +230,15 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
                     },
                     child: DecoratedBox(
                       decoration: const BoxDecoration(
-                        boxShadow: <BoxShadow>[BoxShadow(color: Colors.black12)],
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(color: Colors.black12),
+                        ],
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        value ? Icons.pause_circle_outline : Icons.play_circle_filled,
+                        value
+                            ? Icons.pause_circle_outline
+                            : Icons.play_circle_filled,
                         size: 70.0,
                         color: Colors.white,
                       ),
@@ -221,7 +263,8 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
           return Center(
             child: ScaleText(
               Singleton.textDelegate.loadFailed,
-              semanticsLabel: Singleton.textDelegate.semanticsTextDelegate.loadFailed,
+              semanticsLabel:
+                  Singleton.textDelegate.semanticsTextDelegate.loadFailed,
             ),
           );
         }
@@ -229,13 +272,14 @@ class _VideoPageBuilderState extends State<VideoPageBuilder> {
           initializeVideoPlayerController();
         }
         if (!hasLoaded) {
-          return const SizedBox.shrink();
+          return const Center(child: PlatformProgressIndicator());
         }
         return Semantics(
           onLongPress: () {
             playButtonCallback(context);
           },
-          onLongPressHint: Singleton.textDelegate.semanticsTextDelegate.sActionPlayHint,
+          onLongPressHint:
+              Singleton.textDelegate.semanticsTextDelegate.sActionPlayHint,
           child: _contentBuilder(context),
         );
       },

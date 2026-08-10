@@ -4,12 +4,45 @@ that can be found in the LICENSE file. -->
 
 # Changelog
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > See the [Migration Guide](guides/migration_guide.md) for the details of breaking changes between versions.
 
 ## Unreleased
 
-*None*.
+*None.*
+
+## 10.1.3
+
+**Fixes**
+
+- Fix picker and viewer selection syncing when selecting the last allowed asset.
+- Fix Live Photo controllers completing initialization after the asset changes or the preview is disposed.
+- Fix iCloud videos showing a black frame in the preview between `LocallyAvailableBuilder` completing and `VideoPlayerController.initialize()` finishing; a loading indicator now displays for the whole preparation window.
+- Fix `VideoPageBuilder` continuing to initialize and play a video after the widget was disposed or the previewed asset was swapped mid-load, which could leave iCloud videos playing audio in the background after the picker was closed.
+- Fix single-select mode where the grid UI stops refreshing and no other asset can be selected after selecting an asset from the preview page.
+- Fix the viewer displaying a selectable action for unselected assets after reaching the maximum selection count.
+
+## 10.1.2
+
+**Fixes**
+
+- Fix `assetGridItemSemanticIndex` returning a 0-based index, causing screen readers to announce assets as "Image 0, Image 1, ..." instead of "Image 1, Image 2, ...".
+
+**Improvements**
+- Add doc declaration about `android.permission.READ_MEDIA_VISUAL_USER_SELECTED`.
+
+## 10.1.1
+
+**Fixes**
+
+- Fix selection syncing between the picker and the viewer.
+
+## 10.1.0
+
+**Fixes**
+
+- Refactor drag selection to work across all pages globally.
+- Fix "Bad state: No element" crash in `onAssetsChanged` when paths list is empty.
 
 ## 10.0.0
 
